@@ -8,8 +8,8 @@ from typing import List, Optional
 from langchain_community.llms import Ollama
 from langchain.memory import VectorStoreRetrieverMemory
 from langchain.schema import SystemMessage, HumanMessage, AIMessage
-from langchain_community.embeddings import OllamaEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_ollama import OllamaEmbeddings
+from langchain_chroma import Chroma
 from langchain.prompts import MessagesPlaceholder
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
@@ -24,6 +24,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+async def health_check():
+    """Return a simple status message so clients can verify the server is up."""
+    return {"status": "ok"}
+
+
+@app.get("/api/tags")
+async def list_tags():
+    """Return an empty tag list for clients expecting this endpoint."""
+    return []
 
 # Data models
 class ChatMessage(BaseModel):
@@ -63,36 +75,52 @@ def get_chain(model_name: str):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(data: ChatCompletionRequest):
+    if not data.messages:
+        raise HTTPException(status_code=400, detail="No messages provided")
+    user_message = data.messages[-1].content
     try:
-        user_message = data.messages[-1].content
         chain = get_chain(data.model)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load model '{data.model}': {e}")
+
+    try:
         response = chain.invoke(user_message)
         memory.save_context({"input": user_message}, {"output": response})
         return {"choices": [{"message": {"role": "assistant", "content": response}}]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"LLM error or Ollama unreachable: {e}"
+        )
 
 @app.post("/v1/vision")
 async def vision_endpoint(file: UploadFile = File(...), prompt: str = "Describe the image"):
     try:
         image_bytes = await file.read()
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="Empty file uploaded")
         llm = Ollama(model="llava")
-        response = llm.generate([{
+        response = llm.generate([{ 
             "role": "user",
             "content": prompt,
             "images": [image_bytes]
         }])
         return {"text": response.generations[0][0].text}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"LLM error or Ollama unreachable: {e}"
+        )
 
 
-def main(host: str = "0.0.0.0", port: int = 8000):
+def main(host: str = "0.0.0.0", port: int = 8002):
     uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Local ChatGPT backend")
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", default=8000, type=int)
+    parser.add_argument("--port", default=8002, type=int)
     args = parser.parse_args()
     main(host=args.host, port=args.port)

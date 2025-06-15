@@ -6,7 +6,7 @@ This repository provides a minimal self-hosted AI assistant that exposes an Open
 
 - **OpenAI-Compatible** `/v1/chat/completions` endpoint usable by apps like the Enchanted iOS client, web interfaces, or the CLI.
 - **Persistent Memory** using LangChain's `VectorStoreRetrieverMemory` backed by ChromaDB. Conversations are stored on disk and recalled for future prompts.
-- **Ollama Models** for language generation. You can switch models by providing the model name in each request.
+- **Ollama Models** for language generation. You can switch models by providing the model name in each request. Works with the latest models like `llama3` or `phi3` via `ollama pull`.
 - **Multimodal** example endpoint `/v1/vision` using the `llava` model to handle image inputs (requires the model to be installed in Ollama).
 
 ## Requirements
@@ -21,9 +21,13 @@ Install Python dependencies:
 pip install -r requirements.txt
 ```
 
-`requirements.txt` lists common packages including `fastapi`, `uvicorn`, `langchain`, and `chromadb`. plus `langchain-community` and `python-multipart` for uploads.
+`requirements.txt` includes `fastapi`, `uvicorn`, `langchain`, and `chromadb` plus
+`langchain-community` and the new split packages `langchain-ollama` and
+`langchain-chroma` along with `python-multipart` for uploads.
 
 ## Usage
+
+The server listens on **port 8002** by default. Use `--host 0.0.0.0` to allow connections from other devices on your network. Pull the newest models like `llama3` or `phi3` with `ollama pull` before starting.
 
 1. Ensure Ollama is running and your desired models are pulled, e.g.:
 
@@ -35,28 +39,46 @@ ollama pull llava
 2. Start the server:
 
 ```bash
-python server.py --host 0.0.0.0 --port 8000
+python server.py --host 0.0.0.0 --port 8002
 ```
 
 3. Send API requests compatible with OpenAI's format. Example `curl`:
 
 ```bash
-curl http://localhost:8000/v1/chat/completions \
+curl http://localhost:8002/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model": "mistral", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 The server returns a response in the same structure as `openai.ChatCompletion.create()`.
+To connect from another machine, replace `localhost` with your server's IP address (e.g. http://192.168.1.10:8002). Ensure port 8002 is open in any firewall.
 
 For vision requests:
 
 ```bash
-curl -F file=@image.png -F prompt="describe" http://localhost:8000/v1/vision
+curl -F file=@image.png -F prompt="describe" http://localhost:8002/v1/vision
 ```
+
+### Quick test script
+
+You can run `test_client.py` to verify the API without using `curl`:
+
+```bash
+python test_client.py "Hello"
+```
+
+### Enchanted iOS setup
+
+If you use the Enchanted mobile client, open the **Settings** screen and enable
+**Custom Server**. Set the base URL to `http://<your-server-ip>:8002`. The app
+will automatically append `/v1` to this URL when sending requests. Make sure the
+server is reachable from your phone (use `--host 0.0.0.0` when starting the
+server).
 
 ## Persistence
 
 Conversation history is stored in a local ChromaDB directory (`./chroma_db` by default). Delete this folder to reset memory.
+Set `CHROMA_DB` to change where memory is stored.
 
 ## Notes
 

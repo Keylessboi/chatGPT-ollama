@@ -4,3 +4,6 @@ langchain
 chromadb
 python-multipart
 langchain-community
+langchain-ollama
+langchain-chroma
+requests
