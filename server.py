@@ -1,4 +1,5 @@
 import argparse
+import logging
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 
 import os
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 app.add_middleware(
@@ -90,6 +94,7 @@ async def chat_completions(data: ChatCompletionRequest):
         memory.save_context({"input": user_message}, {"output": response})
         return {"choices": [{"message": {"role": "assistant", "content": response}}]}
     except Exception as e:
+        logger.exception("LLM invocation failed")
         raise HTTPException(
             status_code=500,
             detail=f"LLM error or Ollama unreachable: {e}"
@@ -111,6 +116,7 @@ async def vision_endpoint(file: UploadFile = File(...), prompt: str = "Describe 
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Vision request failed")
         raise HTTPException(
             status_code=500,
             detail=f"LLM error or Ollama unreachable: {e}"

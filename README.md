@@ -27,7 +27,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-The server listens on **port 8001** by default. Use `--host 0.0.0.0` to allow connections from other devices on your network. Pull the newest models like `llama3` or `phi3` with `ollama pull` before starting.
+The server listens on **port 8001** by default. Use `--host 0.0.0.0` to allow connections from other devices on your network. Make sure the Ollama service is running (`ollama serve`) and pull the newest models like `llama3` or `phi3` before starting the server.
 
 1. Ensure Ollama is running and your desired models are pulled, e.g.:
 
@@ -61,10 +61,15 @@ curl -F file=@image.png -F prompt="describe" http://localhost:8001/v1/vision
 
 ### Quick test script
 
-You can run `test_client.py` to verify the API without using `curl`:
+You can run `test_client.py` to verify the API without using `curl`.
+Set the `SERVER_URL` environment variable if the server is on another host:
 
 ```bash
+# local server
 python test_client.py "Hello"
+
+# or specify a remote server
+SERVER_URL=http://192.168.1.10:8001 python test_client.py "Hello"
 ```
 
 ### Enchanted iOS setup

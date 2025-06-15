@@ -1,7 +1,8 @@
+import os
 import requests
 import sys
 
-HOST = "http://localhost:8001"
+HOST = os.environ.get("SERVER_URL", "http://localhost:8001")
 
 
 def main(prompt: str = "Hello"):
@@ -10,6 +11,7 @@ def main(prompt: str = "Hello"):
             "model": "mistral",
             "messages": [{"role": "user", "content": prompt}]
         }
+        print(f"Using server: {HOST}")
         resp = requests.post(f"{HOST}/v1/chat/completions", json=payload)
         resp.raise_for_status()
         data = resp.json()
