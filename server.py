@@ -60,7 +60,7 @@ class ChatCompletionRequest(BaseModel):
 DB_DIR = os.environ.get("CHROMA_DB", "chroma_db")
 VECTOR_DB = Chroma(
     persist_directory=DB_DIR,
-    embedding_function=OllamaEmbeddings(model="nomic-embed-text")
+    embedding_function=OllamaEmbeddings(model="nomic-embed-text", base_url=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
 )
 memory = VectorStoreRetrieverMemory(retriever=VECTOR_DB.as_retriever(search_kwargs={"k": 6}))
 
@@ -70,7 +70,7 @@ ollama_client = ollama.Client(host=OLLAMA_URL)
 
 
 def get_chain(model_name: str):
-    llm = Ollama(model=model_name)
+    llm = Ollama(model=model_name, base_url=OLLAMA_URL)
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You are a helpful AI assistant."),
         MessagesPlaceholder(variable_name="history"),
@@ -104,7 +104,7 @@ async def chat_completions(data: ChatCompletionRequest):
         logger.exception("LLM invocation failed")
         raise HTTPException(
             status_code=500,
-            detail=f"LLM error or Ollama unreachable: {e}"
+            detail=f"LLM error or Ollama unreachable at {OLLAMA_URL}: {e}"
         )
 
 @app.post("/v1/vision")
@@ -113,7 +113,7 @@ async def vision_endpoint(file: UploadFile = File(...), prompt: str = "Describe 
         image_bytes = await file.read()
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Empty file uploaded")
-        llm = Ollama(model="llava")
+        llm = Ollama(model="llava", base_url=OLLAMA_URL)
         response = llm.generate([{ 
             "role": "user",
             "content": prompt,
@@ -126,7 +126,7 @@ async def vision_endpoint(file: UploadFile = File(...), prompt: str = "Describe 
         logger.exception("Vision request failed")
         raise HTTPException(
             status_code=500,
-            detail=f"LLM error or Ollama unreachable: {e}"
+            detail=f"LLM error or Ollama unreachable at {OLLAMA_URL}: {e}"
         )
 
 
@@ -146,7 +146,7 @@ async def api_generate(request: Request):
             return res.model_dump()
     except Exception as e:
         logger.exception("/api/generate failed")
-        raise HTTPException(status_code=500, detail=f"Ollama error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ollama error contacting {OLLAMA_URL}: {e}")
 
 
 @app.post("/api/chat")
@@ -165,7 +165,7 @@ async def api_chat(request: Request):
             return res.model_dump()
     except Exception as e:
         logger.exception("/api/chat failed")
-        raise HTTPException(status_code=500, detail=f"Ollama error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ollama error contacting {OLLAMA_URL}: {e}")
 
 
 def main(host: str = "0.0.0.0", port: int = 8001):

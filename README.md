@@ -48,8 +48,15 @@ ollama pull llava
 The server also proxies the real Ollama API. You can send requests that match
 `/api/generate` and `/api/chat` exactly as documented in
 [Ollama's API docs](https://github.com/ollama/ollama/blob/main/docs/api.md).
-Use the `OLLAMA_URL` environment variable if your Ollama instance is running on
-another host or port (default `http://localhost:11434`).
+If your Ollama service runs on a different host or port, set the `OLLAMA_URL`
+environment variable before starting the server. For example:
+
+```bash
+export OLLAMA_URL=http://192.168.1.247:11434
+python server.py --host 0.0.0.0 --port 8001
+```
+By default the server expects Ollama at `http://localhost:11434`.
+You can verify connectivity by running `curl $OLLAMA_URL/api/tags`.
 
 3. Send API requests compatible with OpenAI's format. Example `curl`:
 
