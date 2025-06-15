@@ -57,6 +57,22 @@ For vision requests:
 curl -F file=@image.png -F prompt="describe" http://localhost:8001/v1/vision
 ```
 
+## Testing
+
+Run a simple check to ensure the server works:
+
+```bash
+python -m py_compile server.py  # syntax check
+```
+
+Start the server in one terminal and in another run:
+
+```bash
+./test_chat.sh
+```
+
+This sends a sample request to `http://localhost:8001/v1/chat/completions`.
+
 ## Persistence
 
 Conversation history is stored in a local ChromaDB directory (`./chroma_db` by default). Delete this folder to reset memory.
