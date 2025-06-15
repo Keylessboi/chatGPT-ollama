@@ -15,6 +15,7 @@ from langchain_chroma import Chroma
 from langchain.prompts import MessagesPlaceholder
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_community.utilities import DuckDuckGoSearchRun
 import json
 import ollama
 
@@ -56,13 +57,19 @@ class ChatCompletionRequest(BaseModel):
     messages: List[ChatMessage]
     temperature: Optional[float] = 0.7
 
+class ResearchRequest(BaseModel):
+    model: str
+    query: str
+
 # Initialize memory and vector store
 DB_DIR = os.environ.get("CHROMA_DB", "chroma_db")
 VECTOR_DB = Chroma(
     persist_directory=DB_DIR,
     embedding_function=OllamaEmbeddings(model="nomic-embed-text", base_url=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
 )
-memory = VectorStoreRetrieverMemory(retriever=VECTOR_DB.as_retriever(search_kwargs={"k": 6}))
+memory = VectorStoreRetrieverMemory(
+    retriever=VECTOR_DB.as_retriever(search_kwargs={"k": 6})
+)
 
 # Underlying Ollama server used for /api/* proxy endpoints
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
@@ -99,6 +106,7 @@ async def chat_completions(data: ChatCompletionRequest):
     try:
         response = chain.invoke(user_message)
         memory.save_context({"input": user_message}, {"output": response})
+        VECTOR_DB.persist()
         return {"choices": [{"message": {"role": "assistant", "content": response}}]}
     except Exception as e:
         logger.exception("LLM invocation failed")
@@ -128,6 +136,25 @@ async def vision_endpoint(file: UploadFile = File(...), prompt: str = "Describe 
             status_code=500,
             detail=f"LLM error or Ollama unreachable at {OLLAMA_URL}: {e}"
         )
+
+
+@app.post("/v1/research")
+async def research_endpoint(req: ResearchRequest):
+    """Perform a web search and summarize the results with the LLM."""
+    try:
+        search = DuckDuckGoSearchRun()
+        results = search.run(req.query)
+        llm = Ollama(model=req.model, base_url=OLLAMA_URL)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a research assistant. Provide a concise summary of the following search results."),
+            ("human", "{results}")
+        ])
+        chain = prompt | llm
+        summary = chain.invoke({"results": results})
+        return {"results": results, "summary": summary}
+    except Exception as e:
+        logger.exception("Research request failed")
+        raise HTTPException(status_code=500, detail=f"Research error: {e}")
 
 
 @app.post("/api/generate")

@@ -5,11 +5,15 @@ This repository provides a minimal self-hosted AI assistant that exposes an Open
 ## Features
 
 - **OpenAI-Compatible** `/v1/chat/completions` endpoint usable by apps like the Enchanted iOS client, web interfaces, or the CLI.
-- **Persistent Memory** using LangChain's `VectorStoreRetrieverMemory` backed by ChromaDB. Conversations are stored on disk and recalled for future prompts.
+- **Persistent Memory** using LangChain's `VectorStoreRetrieverMemory` backed by
+  ChromaDB. Conversations are saved after each request so chats survive server
+  restarts.
 - **Ollama Models** for language generation. You can switch models by providing the model name in each request. Works with the latest models like `llama3` or `phi3` via `ollama pull`.
 - **Multimodal** example endpoint `/v1/vision` using the `llava` model to handle image inputs (requires the model to be installed in Ollama).
 - **Ollama API Proxy** exposing `/api/generate` and `/api/chat` so tools can
   communicate using the standard Ollama protocol.
+- **Deep research** endpoint `/v1/research` performs a web search and summarizes
+  the results via the LLM.
 
 ## Requirements
 
@@ -75,6 +79,19 @@ For vision requests:
 curl -F file=@image.png -F prompt="describe" http://localhost:8001/v1/vision
 ```
 
+### Deep research
+
+The `/v1/research` endpoint performs a DuckDuckGo search and summarizes the
+results using your selected model. Example:
+
+```bash
+curl http://localhost:8001/v1/research \
+  -H "Content-Type: application/json" \
+  -d '{"model": "mistral", "query": "latest AI news"}'
+```
+
+The response contains both the raw search results and a short summary.
+
 ### Quick test script
 
 You can run `test_client.py` to verify the API without using `curl`.
@@ -98,8 +115,10 @@ server).
 
 ## Persistence
 
-Conversation history is stored in a local ChromaDB directory (`./chroma_db` by default). Delete this folder to reset memory.
-Set `CHROMA_DB` to change where memory is stored.
+Conversation history is stored in a local ChromaDB directory (`./chroma_db` by
+default) and is saved after every request. Restarting the server will retain all
+previous chats. Delete this folder to reset memory. Set the `CHROMA_DB`
+environment variable to change where memory is stored.
 
 ## Notes
 
