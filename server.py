@@ -27,12 +27,14 @@ app.add_middleware(
 
 
 @app.get("/")
+@app.head("/")
 async def health_check():
     """Return a simple status message so clients can verify the server is up."""
     return {"status": "ok"}
 
 
 @app.get("/api/tags")
+@app.head("/api/tags")
 async def list_tags():
     """Return an empty tag list for clients expecting this endpoint."""
     return []
@@ -115,12 +117,12 @@ async def vision_endpoint(file: UploadFile = File(...), prompt: str = "Describe 
         )
 
 
-def main(host: str = "0.0.0.0", port: int = 8002):
+def main(host: str = "0.0.0.0", port: int = 8001):
     uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Local ChatGPT backend")
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", default=8002, type=int)
+    parser.add_argument("--port", default=8001, type=int)
     args = parser.parse_args()
     main(host=args.host, port=args.port)

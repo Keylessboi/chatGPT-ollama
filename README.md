@@ -27,7 +27,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-The server listens on **port 8002** by default. Use `--host 0.0.0.0` to allow connections from other devices on your network. Pull the newest models like `llama3` or `phi3` with `ollama pull` before starting.
+The server listens on **port 8001** by default. Use `--host 0.0.0.0` to allow connections from other devices on your network. Pull the newest models like `llama3` or `phi3` with `ollama pull` before starting.
 
 1. Ensure Ollama is running and your desired models are pulled, e.g.:
 
@@ -39,24 +39,24 @@ ollama pull llava
 2. Start the server:
 
 ```bash
-python server.py --host 0.0.0.0 --port 8002
+python server.py --host 0.0.0.0 --port 8001
 ```
 
 3. Send API requests compatible with OpenAI's format. Example `curl`:
 
 ```bash
-curl http://localhost:8002/v1/chat/completions \
+curl http://localhost:8001/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model": "mistral", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 The server returns a response in the same structure as `openai.ChatCompletion.create()`.
-To connect from another machine, replace `localhost` with your server's IP address (e.g. http://192.168.1.10:8002). Ensure port 8002 is open in any firewall.
+To connect from another machine, replace `localhost` with your server's IP address (e.g. http://192.168.1.10:8001). Ensure port 8001 is open in any firewall.
 
 For vision requests:
 
 ```bash
-curl -F file=@image.png -F prompt="describe" http://localhost:8002/v1/vision
+curl -F file=@image.png -F prompt="describe" http://localhost:8001/v1/vision
 ```
 
 ### Quick test script
@@ -70,7 +70,7 @@ python test_client.py "Hello"
 ### Enchanted iOS setup
 
 If you use the Enchanted mobile client, open the **Settings** screen and enable
-**Custom Server**. Set the base URL to `http://<your-server-ip>:8002`. The app
+**Custom Server**. Set the base URL to `http://<your-server-ip>:8001`. The app
 will automatically append `/v1` to this URL when sending requests. Make sure the
 server is reachable from your phone (use `--host 0.0.0.0` when starting the
 server).

@@ -1,7 +1,7 @@
 import requests
 import sys
 
-HOST = "http://localhost:8002"
+HOST = "http://localhost:8001"
 
 
 def main(prompt: str = "Hello"):
