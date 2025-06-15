@@ -5,9 +5,15 @@ This repository provides a minimal self-hosted AI assistant that exposes an Open
 ## Features
 
 - **OpenAI-Compatible** `/v1/chat/completions` endpoint usable by apps like the Enchanted iOS client, web interfaces, or the CLI.
-- **Persistent Memory** using LangChain's `VectorStoreRetrieverMemory` backed by ChromaDB. Conversations are stored on disk and recalled for future prompts.
-- **Ollama Models** for language generation. You can switch models by providing the model name in each request.
+- **Persistent Memory** using LangChain's `VectorStoreRetrieverMemory` backed by
+  ChromaDB. Conversations are saved after each request so chats survive server
+  restarts.
+- **Ollama Models** for language generation. You can switch models by providing the model name in each request. Works with the latest models like `llama3` or `phi3` via `ollama pull`.
 - **Multimodal** example endpoint `/v1/vision` using the `llava` model to handle image inputs (requires the model to be installed in Ollama).
+- **Ollama API Proxy** exposing `/api/generate` and `/api/chat` so tools can
+  communicate using the standard Ollama protocol.
+- **Deep research** endpoint `/v1/research` performs a web search and summarizes
+  the results via the LLM.
 
 ## Requirements
 
@@ -21,9 +27,14 @@ Install Python dependencies:
 pip install -r requirements.txt
 ```
 
-`requirements.txt` lists common packages including `fastapi`, `uvicorn`, `langchain`, and `chromadb`. plus `langchain-community` and `python-multipart` for uploads.
+`requirements.txt` includes `fastapi`, `uvicorn`, `langchain`, and `chromadb` plus
+`langchain-community` and the new split packages `langchain-ollama` and
+`langchain-chroma` along with `python-multipart` for uploads.
+`ollama` is included to proxy the official API.
 
 ## Usage
+
+The server listens on **port 8001** by default. Use `--host 0.0.0.0` to allow connections from other devices on your network. Make sure the Ollama service is running (`ollama serve`) and pull the newest models like `llama3` or `phi3` before starting the server.
 
 1. Ensure Ollama is running and your desired models are pulled, e.g.:
 
@@ -35,28 +46,79 @@ ollama pull llava
 2. Start the server:
 
 ```bash
-python server.py --host 0.0.0.0 --port 8000
+    python server.py --host 0.0.0.0 --port 8001
 ```
+
+The server also proxies the real Ollama API. You can send requests that match
+`/api/generate` and `/api/chat` exactly as documented in
+[Ollama's API docs](https://github.com/ollama/ollama/blob/main/docs/api.md).
+If your Ollama service runs on a different host or port, set the `OLLAMA_URL`
+environment variable before starting the server. For example:
+
+```bash
+export OLLAMA_URL=http://192.168.1.247:11434
+python server.py --host 0.0.0.0 --port 8001
+```
+By default the server expects Ollama at `http://localhost:11434`.
+You can verify connectivity by running `curl $OLLAMA_URL/api/tags`.
 
 3. Send API requests compatible with OpenAI's format. Example `curl`:
 
 ```bash
-curl http://localhost:8000/v1/chat/completions \
+curl http://localhost:8001/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model": "mistral", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
 The server returns a response in the same structure as `openai.ChatCompletion.create()`.
+To connect from another machine, replace `localhost` with your server's IP address (e.g. http://192.168.1.10:8001). Ensure port 8001 is open in any firewall.
 
 For vision requests:
 
 ```bash
-curl -F file=@image.png -F prompt="describe" http://localhost:8000/v1/vision
+curl -F file=@image.png -F prompt="describe" http://localhost:8001/v1/vision
 ```
+
+### Deep research
+
+The `/v1/research` endpoint performs a DuckDuckGo search and summarizes the
+results using your selected model. Example:
+
+```bash
+curl http://localhost:8001/v1/research \
+  -H "Content-Type: application/json" \
+  -d '{"model": "mistral", "query": "latest AI news"}'
+```
+
+The response contains both the raw search results and a short summary.
+
+### Quick test script
+
+You can run `test_client.py` to verify the API without using `curl`.
+Set the `SERVER_URL` environment variable if the server is on another host:
+
+```bash
+# local server
+python test_client.py "Hello"
+
+# or specify a remote server
+SERVER_URL=http://192.168.1.10:8001 python test_client.py "Hello"
+```
+
+### Enchanted iOS setup
+
+If you use the Enchanted mobile client, open the **Settings** screen and enable
+**Custom Server**. Set the base URL to `http://<your-server-ip>:8001`. The app
+will automatically append `/v1` to this URL when sending requests. Make sure the
+server is reachable from your phone (use `--host 0.0.0.0` when starting the
+server).
 
 ## Persistence
 
-Conversation history is stored in a local ChromaDB directory (`./chroma_db` by default). Delete this folder to reset memory.
+Conversation history is stored in a local ChromaDB directory (`./chroma_db` by
+default) and is saved after every request. Restarting the server will retain all
+previous chats. Delete this folder to reset memory. Set the `CHROMA_DB`
+environment variable to change where memory is stored.
 
 ## Notes
 

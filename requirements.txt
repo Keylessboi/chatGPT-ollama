@@ -1,6 +1,10 @@
-fastapi
+fastapi>=0.110
 uvicorn
 langchain
 chromadb
 python-multipart
 langchain-community
+langchain-ollama
+langchain-chroma
+requests
+ollama
