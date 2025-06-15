@@ -44,8 +44,16 @@ async def health_check():
 @app.get("/api/tags")
 @app.head("/api/tags")
 async def list_tags():
-    """Return an empty tag list for clients expecting this endpoint."""
-    return []
+    """Proxy the Ollama /api/tags endpoint to list local models."""
+    try:
+        res = ollama_client.list()
+        return res.model_dump()
+    except Exception as e:
+        logger.exception("/api/tags failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ollama error contacting {OLLAMA_URL}: {e}"
+        )
 
 # Data models
 class ChatMessage(BaseModel):
@@ -192,6 +200,18 @@ async def api_chat(request: Request):
             return res.model_dump()
     except Exception as e:
         logger.exception("/api/chat failed")
+        raise HTTPException(status_code=500, detail=f"Ollama error contacting {OLLAMA_URL}: {e}")
+
+
+@app.get("/api/ps")
+@app.head("/api/ps")
+async def api_ps():
+    """List models currently loaded into memory."""
+    try:
+        res = ollama_client.ps()
+        return res.model_dump()
+    except Exception as e:
+        logger.exception("/api/ps failed")
         raise HTTPException(status_code=500, detail=f"Ollama error contacting {OLLAMA_URL}: {e}")
 
 

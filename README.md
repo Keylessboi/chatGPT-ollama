@@ -10,8 +10,9 @@ This repository provides a minimal self-hosted AI assistant that exposes an Open
   restarts.
 - **Ollama Models** for language generation. You can switch models by providing the model name in each request. Works with the latest models like `llama3` or `phi3` via `ollama pull`.
 - **Multimodal** example endpoint `/v1/vision` using the `llava` model to handle image inputs (requires the model to be installed in Ollama).
-- **Ollama API Proxy** exposing `/api/generate` and `/api/chat` so tools can
-  communicate using the standard Ollama protocol.
+- **Ollama API Proxy** exposing `/api/generate`, `/api/chat`, and `/api/ps` so
+  tools can communicate using the standard Ollama protocol and query loaded
+  models.
 - **Deep research** endpoint `/v1/research` performs a web search and summarizes
   the results via the LLM.
 
@@ -60,7 +61,10 @@ export OLLAMA_URL=http://192.168.1.247:11434
 python server.py --host 0.0.0.0 --port 8001
 ```
 By default the server expects Ollama at `http://localhost:11434`.
-You can verify connectivity by running `curl $OLLAMA_URL/api/tags`.
+You can verify connectivity by running `curl $OLLAMA_URL/api/tags` to list
+installed models. To see which models are currently loaded into memory, call
+`curl http://localhost:8001/api/ps` (replace `localhost` with your server's IP
+if remote).
 
 3. Send API requests compatible with OpenAI's format. Example `curl`:
 
