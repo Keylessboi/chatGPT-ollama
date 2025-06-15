@@ -8,6 +8,8 @@ This repository provides a minimal self-hosted AI assistant that exposes an Open
 - **Persistent Memory** using LangChain's `VectorStoreRetrieverMemory` backed by ChromaDB. Conversations are stored on disk and recalled for future prompts.
 - **Ollama Models** for language generation. You can switch models by providing the model name in each request. Works with the latest models like `llama3` or `phi3` via `ollama pull`.
 - **Multimodal** example endpoint `/v1/vision` using the `llava` model to handle image inputs (requires the model to be installed in Ollama).
+- **Ollama API Proxy** exposing `/api/generate` and `/api/chat` so tools can
+  communicate using the standard Ollama protocol.
 
 ## Requirements
 
@@ -24,6 +26,7 @@ pip install -r requirements.txt
 `requirements.txt` includes `fastapi`, `uvicorn`, `langchain`, and `chromadb` plus
 `langchain-community` and the new split packages `langchain-ollama` and
 `langchain-chroma` along with `python-multipart` for uploads.
+`ollama` is included to proxy the official API.
 
 ## Usage
 
@@ -39,8 +42,14 @@ ollama pull llava
 2. Start the server:
 
 ```bash
-python server.py --host 0.0.0.0 --port 8001
+    python server.py --host 0.0.0.0 --port 8001
 ```
+
+The server also proxies the real Ollama API. You can send requests that match
+`/api/generate` and `/api/chat` exactly as documented in
+[Ollama's API docs](https://github.com/ollama/ollama/blob/main/docs/api.md).
+Use the `OLLAMA_URL` environment variable if your Ollama instance is running on
+another host or port (default `http://localhost:11434`).
 
 3. Send API requests compatible with OpenAI's format. Example `curl`:
 

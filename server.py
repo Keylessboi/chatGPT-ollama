@@ -1,7 +1,8 @@
 import argparse
 import logging
 import uvicorn
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -14,6 +15,8 @@ from langchain_chroma import Chroma
 from langchain.prompts import MessagesPlaceholder
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+import json
+import ollama
 
 import os
 
@@ -60,6 +63,10 @@ VECTOR_DB = Chroma(
     embedding_function=OllamaEmbeddings(model="nomic-embed-text")
 )
 memory = VectorStoreRetrieverMemory(retriever=VECTOR_DB.as_retriever(search_kwargs={"k": 6}))
+
+# Underlying Ollama server used for /api/* proxy endpoints
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+ollama_client = ollama.Client(host=OLLAMA_URL)
 
 
 def get_chain(model_name: str):
@@ -121,6 +128,44 @@ async def vision_endpoint(file: UploadFile = File(...), prompt: str = "Describe 
             status_code=500,
             detail=f"LLM error or Ollama unreachable: {e}"
         )
+
+
+@app.post("/api/generate")
+async def api_generate(request: Request):
+    data = await request.json()
+    stream = data.get("stream", True)
+    try:
+        if stream:
+            def gen():
+                for chunk in ollama_client.generate(stream=True, **data):
+                    yield chunk.model_dump_json() + "\n"
+
+            return StreamingResponse(gen(), media_type="application/json")
+        else:
+            res = ollama_client.generate(stream=False, **data)
+            return res.model_dump()
+    except Exception as e:
+        logger.exception("/api/generate failed")
+        raise HTTPException(status_code=500, detail=f"Ollama error: {e}")
+
+
+@app.post("/api/chat")
+async def api_chat(request: Request):
+    data = await request.json()
+    stream = data.get("stream", True)
+    try:
+        if stream:
+            def gen():
+                for chunk in ollama_client.chat(stream=True, **data):
+                    yield chunk.model_dump_json() + "\n"
+
+            return StreamingResponse(gen(), media_type="application/json")
+        else:
+            res = ollama_client.chat(stream=False, **data)
+            return res.model_dump()
+    except Exception as e:
+        logger.exception("/api/chat failed")
+        raise HTTPException(status_code=500, detail=f"Ollama error: {e}")
 
 
 def main(host: str = "0.0.0.0", port: int = 8001):
